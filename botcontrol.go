@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"log"
+	"net"
 	"reflect"
 
 	"azul3d.org/gfx.v1"
@@ -12,28 +13,54 @@ import (
 	"azul3d.org/keyboard.v1"
 	"azul3d.org/mouse.v1"
 	"github.com/xa4a/go-roomba"
+	//"github.com/saljam/roomba"
+	//"github.com/zagaberoo/roboderp"
 )
 
 const (
-	defaultPort    = "/dev/cu.usbserial-DA017N8D"
+	defaultSerial  = "/dev/cu.usbserial-DA017N8D"
 	velocityChange = 300
 	rotationChange = 400
 )
 
 var (
-	portName = flag.String("port", defaultPort, "Roomba's serial port name")
+	serialPort = flag.String("serial", defaultSerial, "Local serial port name.")
+	remoteAddr = flag.String("remote", "", "Remote Roomba's netowork address and port.")
 )
+
+func makeRemoteRoomba(remoteAddr string) (*roomba.Roomba, error) {
+	// from MakeRoomba()...
+	roomba := &roomba.Roomba{PortName: remoteAddr, StreamPaused: make(chan bool, 1)}
+	conn, err := net.Dial("tcp", remoteAddr)
+	if err != nil {
+		return nil, err
+	}
+	roomba.S = conn
+	return roomba, nil
+}
 
 // gfxLoop is responsible for drawing things to the window.
 func gfxLoop(w window.Window, r gfx.Renderer) {
 
-	// Get ready to Roomba!
+	// Who we gonna call? Default to local serial unless a remote addr was given
 	flag.Parse()
-	bot, err := roomba.MakeRoomba(*portName)
-	if err != nil {
-		log.Fatal("Making Roomba failed")
+	var bot *roomba.Roomba
+	if *remoteAddr != "" {
+		var err error
+		bot, err = makeRemoteRoomba(*remoteAddr)
+		if err != nil {
+			log.Fatalf("Connecting to remote Roomba @ %s failed", *remoteAddr)
+		}
+	} else {
+		var err error
+		bot, err = roomba.MakeRoomba(*serialPort)
+		if err != nil {
+			log.Fatalf("Connecting to local serial Roomba @ %s failed", *serialPort)
+		}
 	}
-	err = bot.Start()
+
+	// Start the Roomba & put it into Safe mode
+	err := bot.Start()
 	if err != nil {
 		log.Fatal("Starting failed")
 	}
@@ -44,7 +71,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 	fmt.Printf("\nMain Bot: %#v", bot)
 
-	// You can handle window events in a seperate goroutine!
+	// Handle window events in a seperate goroutine
 	go func() {
 		// Create our events channel with sufficient buffer size.
 		events := make(chan window.Event, 256)
@@ -91,6 +118,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		}
 	}()
 
+	// cheesy block direction signals
 	upArr := image.Rect(100, 0, 100+100, 0+100)
 	dnArr := image.Rect(100, 200, 100+100, 200+100)
 	lfArr := image.Rect(0, 100, 0+100, 100+100)
