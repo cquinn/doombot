@@ -13,8 +13,6 @@ import (
 	"azul3d.org/keyboard.v1"
 	"azul3d.org/mouse.v1"
 	"github.com/xa4a/go-roomba"
-	//"github.com/saljam/roomba"
-	//"github.com/zagaberoo/roboderp"
 )
 
 const (
