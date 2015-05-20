@@ -23,7 +23,7 @@ const (
 
 var (
 	serialPort = flag.String("serial", defaultSerial, "Local serial port name.")
-	remoteAddr = flag.String("remote", "", "Remote Roomba's netowork address and port.")
+	remoteAddr = flag.String("remote", "", "Remote Roomba's network address and port.")
 )
 
 func makeRemoteRoomba(remoteAddr string) (*roomba.Roomba, error) {
