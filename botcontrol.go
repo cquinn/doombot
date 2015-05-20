@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	//"fmt"
 	"image"
 	"log"
 	"net"
@@ -40,34 +40,40 @@ func makeRemoteRoomba(remoteAddr string) (*roomba.Roomba, error) {
 // gfxLoop is responsible for drawing things to the window.
 func gfxLoop(w window.Window, r gfx.Renderer) {
 
-	// Who we gonna call? Default to local serial unless a remote addr was given
+	log.Printf("gfxLoop")
 	flag.Parse()
+
+	// Who we gonna call? Default to local serial unless a remote addr was given
 	var bot *roomba.Roomba
 	if *remoteAddr != "" {
+		log.Printf("Connecting to remote Doombot @ %s", *remoteAddr)
 		var err error
 		bot, err = makeRemoteRoomba(*remoteAddr)
 		if err != nil {
-			log.Fatalf("Connecting to remote Roomba @ %s failed", *remoteAddr)
+			log.Fatalf("Connecting to remote Doombot @ %s failed", *remoteAddr)
 		}
 	} else {
+		log.Printf("Connecting to local serial Doombot @ %s", *serialPort)
 		var err error
 		bot, err = roomba.MakeRoomba(*serialPort)
 		if err != nil {
-			log.Fatalf("Connecting to local serial Roomba @ %s failed", *serialPort)
+			log.Fatalf("Connecting to local serial Doombot @ %s failed", *serialPort)
 		}
 	}
 
-	// Start the Roomba & put it into Safe mode
+	// Start the Doombot & put it into Safe mode
+	log.Println()
+	log.Printf("Starting Doombot %s", bot.PortName)
 	err := bot.Start()
 	if err != nil {
 		log.Fatal("Starting failed")
 	}
+	log.Printf("Entering Safe mode")
 	err = bot.Safe()
 	if err != nil {
 		log.Fatal("Entering Safe mode failed")
 	}
-
-	fmt.Printf("\nMain Bot: %#v", bot)
+	log.Println()
 
 	// Handle window events in a seperate goroutine
 	go func() {
@@ -77,14 +83,16 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		// Notify our channel anytime any event occurs.
 		w.Notify(events, window.AllEvents)
 
-		fmt.Printf("\nBot: %#v", bot)
+		log.Printf("Event handler gorouting running")
 
 		// Wait for events.
 		for event := range events {
 			switch event.(type) {
 			case keyboard.StateEvent:
-				fmt.Printf("\nEvent type %s: %v\n", reflect.TypeOf(event), event)
+				log.Println()
+				log.Printf("Event type %s: %v", reflect.TypeOf(event), event)
 				ke := event.(keyboard.StateEvent)
+
 				motionChange := ke.Key == keyboard.ArrowUp || ke.Key == keyboard.ArrowDown ||
 					ke.Key == keyboard.ArrowLeft || ke.Key == keyboard.ArrowRight
 
@@ -108,9 +116,17 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 					vr := velocity + (rotation / 2)
 					vl := velocity - (rotation / 2)
 
-					fmt.Printf("Updating Right:%d Left:%d\n", vr, vl)
-
+					log.Printf("Updating Right:%d Left:%d", vr, vl)
 					bot.DirectDrive(int16(vr), int16(vl))
+
+				} else {
+					if w.Keyboard().Down(keyboard.R) {
+						log.Printf("Resetting to safe mode")
+						err = bot.Safe()
+						if err != nil {
+							log.Fatal("Entering Safe mode failed")
+						}
+					}
 				}
 			}
 		}
@@ -123,6 +139,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	rtArr := image.Rect(200, 100, 200+100, 100+100)
 
 	for {
+		//log.Printf("Rendering")
 		// Clear the entire area (empty rectangle means "the whole area").
 		r.Clear(image.Rect(0, 0, 0, 0), gfx.Color{1, 1, 1, 1})
 
@@ -145,9 +162,9 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		}
 
 		if w.Keyboard().Down(keyboard.Q) {
-			fmt.Printf("Quitting...\n")
-			bot.Stop()         // Motor Stop
-			bot.WriteByte(173) // Roomba Stop
+			log.Printf("Quitting")
+			bot.Stop() // Motor Stop
+			//bot.WriteByte(173) // Roomba Stop
 			w.Close()
 		}
 
@@ -163,5 +180,6 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 }
 
 func main() {
+	log.Printf("Main")
 	window.Run(gfxLoop, nil)
 }
