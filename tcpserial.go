@@ -68,7 +68,7 @@ func main() {
 
 func copyWithAbort(dst io.WriteCloser, src io.ReadCloser, stopper chan bool, waitGroup *sync.WaitGroup) {
 	//src.SetReadDeadline(time.Now().Add(1000 * time.Millisecond)) // 1000 ms max wait
-	glog.Infof("Copying: %v <= %v\n", dst, src)
+	//glog.Infof("Copying: %v <= %v\n", dst, src)
 	defer waitGroup.Done()
 	for {
 		// Check for a stop signal
@@ -82,14 +82,16 @@ func copyWithAbort(dst io.WriteCloser, src io.ReadCloser, stopper chan bool, wai
 		default:
 		}
 		// copy bytes, timeout after deadline
+		glog.Infof("Copying: %v <= %v\n", dst, src)
 		copied, err := io.Copy(dst, src)
-		glog.Info("  copied %d %v <= %v exited %s, looping\n", copied, dst, src, err)
+		glog.Infof("  copied %d %v <= %v exited %v, looping\n", copied, dst, src, err)
 		// just a timeout, keep trying
 		if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
 			continue
 		}
 		// nothing to read: assume src has been closed
 		if copied == 0 {
+			glog.Infof("  done, exiting\n")
 			return
 		}
 	}
