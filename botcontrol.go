@@ -263,8 +263,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	//bumpers
 	tlBumper := image.Rect(30, 50, 30+80, 50+30)
 	trBumper := image.Rect(240, 50, 240+80, 50+30)
-	blBumper := image.Rect(30, 300, 30+80, 300+30)
-	brBumper := image.Rect(240, 300, 240+80, 300+30)
+
 	for {
 		//log.Printf("Rendering")
 		// Clear the entire area (empty rectangle means "the whole area").
@@ -278,8 +277,6 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		
 		r.Clear(tlBumper, gfx.Color{0.5, 0, 0, 0.1})
 		r.Clear(trBumper, gfx.Color{0.5, 0, 0, 0.1})
-		r.Clear(blBumper, gfx.Color{0.5, 0, 0, 0.1})
-		r.Clear(brBumper, gfx.Color{0.5, 0, 0, 0.1})
 		// The keyboard is monitored for you, simply check if a key is down:
 		if w.Keyboard().Down(keyboard.ArrowUp) {
 			// Clear a red rectangle.
