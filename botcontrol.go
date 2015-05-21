@@ -14,6 +14,8 @@ import (
 	"azul3d.org/gfx/window.v2"
 	"azul3d.org/keyboard.v1"
 	"azul3d.org/mouse.v1"
+	"github.com/cquinn/doombot/testing"
+	"github.com/cquinn/doombot/text"
 	"github.com/xa4a/go-roomba"
 )
 
@@ -26,6 +28,7 @@ const (
 var (
 	serialPort = flag.String("serial", defaultSerial, "Local serial port name.")
 	remoteAddr = flag.String("remote", "", "Remote Roomba's network address and port.")
+	testMode   = flag.String("testMode", "", "Set to true to use a mock roomba")
 	modes      = []string{"Off", "Passive", "Safe", "Full"}
 )
 
@@ -132,7 +135,10 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 	// Who we gonna call? Default to local serial unless a remote addr was given
 	var bot *roomba.Roomba
-	if *remoteAddr != "" {
+	if *testMode == "true" {
+		log.Printf("Creating mock doombot")
+		bot = testing.MakeTestRoomba()
+	} else if *remoteAddr != "" {
 		log.Printf("Connecting to remote Doombot @ %s", *remoteAddr)
 		var err error
 		bot, err = makeRemoteRoomba(*remoteAddr)
@@ -160,6 +166,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	log.Printf("Mode: %d", mode)
 	//log.Printf("Mode: %s", modes[mode])
 
+	// TODO - add sensor 21 to mock roomba
 	charging, _ := sensorU8(bot, 21)
 	log.Printf("Charging state: %d", charging)
 	log.Println()
@@ -189,8 +196,10 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 	// collect sensor data in a separate goroutine
 	go func() {
-		time.Sleep(500)
-		events <- &TimeEvent{}
+		for {
+			time.Sleep(500 * time.Millisecond)
+			events <- &TimeEvent{}
+		}
 	}()
 
 	// Handle window events in a seperate goroutine
@@ -249,6 +258,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 				}
 			case *TimeEvent:
 				// grab all the sensor info
+				log.Printf("Getting latest sensor info")
 				sensor, _ = getSensorInfo(bot)
 			}
 		}
@@ -259,7 +269,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	dnArr := image.Rect(150, 200, 150+50, 200+50)
 	lfArr := image.Rect(100, 150, 100+50, 150+50)
 	rtArr := image.Rect(200, 150, 200+50, 150+50)
-	
+
 	//bumpers
 	tlBumper := image.Rect(30, 50, 30+80, 50+30)
 	trBumper := image.Rect(240, 50, 240+80, 50+30)
@@ -268,15 +278,16 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		//log.Printf("Rendering")
 		// Clear the entire area (empty rectangle means "the whole area").
 		r.Clear(image.Rect(0, 0, 0, 0), gfx.Color{1, 1, 1, 1})
-		
+
 		//clear d-pad
 		r.Clear(upArr, gfx.Color{0.5, 0, 0, 0.1})
 		r.Clear(dnArr, gfx.Color{0.5, 0, 0, 0.1})
 		r.Clear(lfArr, gfx.Color{0.5, 0, 0, 0.1})
 		r.Clear(rtArr, gfx.Color{0.5, 0, 0, 0.1})
-		
+
 		r.Clear(tlBumper, gfx.Color{0.5, 0, 0, 0.1})
 		r.Clear(trBumper, gfx.Color{0.5, 0, 0, 0.1})
+
 		// The keyboard is monitored for you, simply check if a key is down:
 		if w.Keyboard().Down(keyboard.ArrowUp) {
 			// Clear a red rectangle.
@@ -310,6 +321,15 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 			// Clear a blue rectangle.
 			r.Clear(image.Rect(100, 100, 200, 200), gfx.Color{0, 0, 1, 1})
 		}
+
+		// Add some text
+		text.Runes = append(text.Runes, ev.Rune)
+		text.Update()
+		b := r.Bounds()
+		text.Object.SetPos(lmath.Vec3{0, 0, float64(b.Dy()) / 2.0})
+		r.Clear(image.Rect(0, 0, 0, 0), gfx.Color{0.2, 0.2, 0.2, 1})
+		r.ClearDepth(image.Rect(0, 0, 0, 0), 1.0)
+		r.Draw(image.Rect(0, 0, 0, 0), text.Object, camera)
 
 		// Render the whole frame.
 		r.Render()
