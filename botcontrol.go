@@ -26,6 +26,19 @@ var (
 	serialPort = flag.String("serial", defaultSerial, "Local serial port name.")
 	remoteAddr = flag.String("remote", "", "Remote Roomba's network address and port.")
 	modes      = []string{"Off", "Passive", "Safe", "Full"}
+
+	lacucaracha = []byte{
+		60, 12,
+		60, 12,
+		60, 12,
+		65, 24,
+		69, 12,
+		60, 12,
+		60, 12,
+		60, 12,
+		65, 24,
+		69, 24,
+	}
 )
 
 func makeRemoteRoomba(remoteAddr string) (*roomba.Roomba, error) {
@@ -37,6 +50,18 @@ func makeRemoteRoomba(remoteAddr string) (*roomba.Roomba, error) {
 	}
 	roomba.S = conn
 	return roomba, nil
+}
+
+func defineSong(bot *roomba.Roomba, songNum int, songNotes []byte) {
+	songLen := len(songNotes) / 2
+	songBytes := []byte{byte(songNum - 1), byte(songLen)}
+	songBytes = append(songBytes, songNotes...)
+	bot.Write(140, songBytes)
+}
+
+func playSong(bot *roomba.Roomba, songNum int) {
+	songBytes := []byte{byte(songNum - 1)}
+	bot.Write(141, songBytes)
 }
 
 func sensorS8(bot *roomba.Roomba, sensor byte) (int, error) {
@@ -157,6 +182,8 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 	log.Println()
 
+	defineSong(bot, 5, lacucaracha)
+
 	// Handle window events in a seperate goroutine
 	go func() {
 		// Create our events channel with sufficient buffer size.
@@ -212,6 +239,21 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 					} else if w.Keyboard().Down(keyboard.D) {
 						log.Printf("Seeking Dock")
 						err = bot.WriteByte(143) // Seek Dock
+					} else if w.Keyboard().Down(keyboard.One) {
+						log.Printf("Playing Song 1")
+						playSong(bot, 1)
+					} else if w.Keyboard().Down(keyboard.Two) {
+						log.Printf("Playing Song 2")
+						playSong(bot, 2)
+					} else if w.Keyboard().Down(keyboard.Three) {
+						log.Printf("Playing Song 3")
+						playSong(bot, 3)
+					} else if w.Keyboard().Down(keyboard.Four) {
+						log.Printf("Playing Song 4")
+						playSong(bot, 4)
+					} else if w.Keyboard().Down(keyboard.Five) {
+						log.Printf("Playing Song 5")
+						playSong(bot, 5)
 					}
 				}
 			}
