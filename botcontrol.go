@@ -27,17 +27,102 @@ var (
 	remoteAddr = flag.String("remote", "", "Remote Roomba's network address and port.")
 	modes      = []string{"Off", "Passive", "Safe", "Full"}
 
+	t8  byte = 12 // 16 for 120BPM in theory
+	t4  byte = t8 * 2
+	t4d byte = t4 + t8
+	t2  byte = t4 * 2
+	t2d byte = t2 + t4
+	t1  byte = t2 * 2
+
+	cscaleup = []byte{
+		60, t8,
+		62, t8,
+		64, t8,
+		65, t8,
+		67, t8,
+		69, t8,
+		71, t8,
+		72, t8,
+		74, t8,
+		76, t8,
+		77, t8,
+		79, t8,
+		81, t8,
+		83, t8,
+		84, t8,
+	}
+
+	cscaledown = []byte{
+		84, t8,
+		83, t8,
+		81, t8,
+		79, t8,
+		77, t8,
+		76, t8,
+		74, t8,
+		72, t8,
+		71, t8,
+		69, t8,
+		67, t8,
+		65, t8,
+		64, t8,
+		62, t8,
+		60, t8,
+	}
+
+	silverscrapes = []byte{
+		67, t8,
+		66, t4,
+		64, t8,
+		52, t1,
+		64, t8,
+		66, t4,
+		48, t1,
+		64, t8,
+		60, t4d,
+		55, t1,
+		67, t8,
+		69, t4,
+		71, t8,
+		50, t1,
+	}
+
+	shaveandhaircut = []byte{
+		67, t4,
+		62, t8,
+		62, t8,
+		64, t4,
+		62, t4,
+		127, t4,
+		66, t4,
+		67, t4,
+	}
+
 	lacucaracha = []byte{
-		60, 12,
-		60, 12,
-		60, 12,
-		65, 24,
-		69, 12,
-		60, 12,
-		60, 12,
-		60, 12,
-		65, 24,
-		69, 24,
+		60, t8,
+		60, t8,
+		60, t8,
+		65, t4,
+		69, t8,
+		60, t8,
+		60, t8,
+		60, t8,
+		65, t4,
+		69, t4,
+	}
+
+	homeontherange = []byte{
+		62, t4,
+		62, t4,
+		67, t4,
+		69, t4,
+		71, t2,
+		67, t8,
+		66, t8,
+		64, t2d,
+		72, t4,
+		72, t4,
+		72, t2,
 	}
 )
 
@@ -182,7 +267,11 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 	log.Println()
 
-	defineSong(bot, 5, lacucaracha)
+	defineSong(bot, 1, cscaleup)
+	//defineSong(bot, 2, cscaledown)
+	defineSong(bot, 2, shaveandhaircut)
+	defineSong(bot, 3, silverscrapes)
+	defineSong(bot, 4, lacucaracha)
 
 	// Handle window events in a seperate goroutine
 	go func() {
