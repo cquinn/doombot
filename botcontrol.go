@@ -255,16 +255,20 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	}()
 
 	// cheesy block direction signals
-	upArr := image.Rect(100, 0, 100+100, 0+100)
-	dnArr := image.Rect(100, 200, 100+100, 200+100)
-	lfArr := image.Rect(0, 100, 0+100, 100+100)
-	rtArr := image.Rect(200, 100, 200+100, 100+100)
+	upArr := image.Rect(150, 100, 150+50, 100+50)
+	dnArr := image.Rect(150, 200, 150+50, 200+50)
+	lfArr := image.Rect(100, 150, 100+50, 150+50)
+	rtArr := image.Rect(200, 150, 200+50, 150+50)
 
 	for {
 		//log.Printf("Rendering")
 		// Clear the entire area (empty rectangle means "the whole area").
 		r.Clear(image.Rect(0, 0, 0, 0), gfx.Color{1, 1, 1, 1})
-
+		
+		r.Clear(upArr, gfx.Color{0.5, 0, 0, 0.1})
+		r.Clear(dnArr, gfx.Color{0.5, 0, 0, 0.1})
+		r.Clear(lfArr, gfx.Color{0.5, 0, 0, 0.1})
+		r.Clear(rtArr, gfx.Color{0.5, 0, 0, 0.1})
 		// The keyboard is monitored for you, simply check if a key is down:
 		if w.Keyboard().Down(keyboard.ArrowUp) {
 			// Clear a red rectangle.
