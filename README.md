@@ -1,5 +1,5 @@
 # doombot
-Hacky code for playing with Roombas and Raspberry Pis for thunderdome
+Hacky code for playing with Roombas and Raspberry Pi
 
 Using the github.com/xa4a/go-roomba library for talking to a Roomba, although also check out github.com/saljam/roomba and github.com/zagaberoo/roboderp.
 
