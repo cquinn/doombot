@@ -274,6 +274,11 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	tlBumper := image.Rect(30, 50, 30+80, 50+30)
 	trBumper := image.Rect(240, 50, 240+80, 50+30)
 
+	//batteryComponents
+	botBat := image.Rect(600, 400, 600+50, 400+30)
+	midBat := image.Rect(600, 370, 600+50, 370+30)
+	topBat := image.Rect(600, 340, 600+50, 340+30)
+	tipBat := image.Rect(610, 330, 610+30, 330+10)
 	for {
 		//log.Printf("Rendering")
 		// Clear the entire area (empty rectangle means "the whole area").
@@ -287,6 +292,12 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 		r.Clear(tlBumper, gfx.Color{0.5, 0, 0, 0.1})
 		r.Clear(trBumper, gfx.Color{0.5, 0, 0, 0.1})
+
+		//draw battery
+		r.Clear(botBat, gfx.Color{0.5, 0, 0, 0.1})
+		r.Clear(midBat, gfx.Color{0.5, 0, 0, 0.1})
+		r.Clear(topBat, gfx.Color{0.5, 0, 0, 0.1})
+		r.Clear(tipBat, gfx.Color{0.5, 0, 0, 0.1})
 
 		// The keyboard is monitored for you, simply check if a key is down:
 		if w.Keyboard().Down(keyboard.ArrowUp) {
