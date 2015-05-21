@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"reflect"
+	"time"
 
 	"azul3d.org/gfx.v1"
 	"azul3d.org/gfx/window.v2"
@@ -27,6 +28,50 @@ var (
 	remoteAddr = flag.String("remote", "", "Remote Roomba's network address and port.")
 	modes      = []string{"Off", "Passive", "Safe", "Full"}
 )
+
+type TimeEvent struct{}
+
+func (e *TimeEvent) Time() time.Time {
+	return time.Now()
+}
+
+type SensorInfo struct {
+	voltage  uint
+	current  int
+	temp     int
+	charge   uint
+	capacity uint
+	// TODO - add enum for mode (careful, can get whacky modes...)
+	mode uint
+}
+
+func getSensorInfo(bot *roomba.Roomba) (*SensorInfo, error) {
+	si := &SensorInfo{}
+	log.Println()
+	log.Printf("GETTING SENSOR INFO")
+	// TODO - check for error return from sensor stuff
+	si.voltage, _ = sensorU16(bot, 22)
+	log.Printf("Voltage: %dmV", si.voltage)
+
+	si.current, _ = sensorS16(bot, 23)
+	log.Printf("Current: %dmA", si.current)
+
+	si.temp, _ = sensorS8(bot, 24)
+	log.Printf("Temp: %dC", si.temp)
+
+	si.charge, _ = sensorU16(bot, 25)
+	log.Printf("Charge: %dmAh", si.charge)
+
+	si.capacity, _ = sensorU16(bot, 26)
+	log.Printf("Capacity: %dmAh", si.capacity)
+
+	si.mode, _ = sensorU8(bot, 35)
+	log.Printf("Mode: %d", si.mode)
+
+	log.Println()
+
+	return si, nil
+}
 
 func makeRemoteRoomba(remoteAddr string) (*roomba.Roomba, error) {
 	// from MakeRoomba()...
@@ -136,32 +181,20 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		5 Charging Fault Condition
 	*/
 
-	voltage, _ := sensorU16(bot, 22)
-	log.Printf("Voltage: %dmV", voltage)
+	// to be populated by a timer and dumped to the UI
+	var sensor *SensorInfo
 
-	current, _ := sensorS16(bot, 23)
-	log.Printf("Current: %dmA", current)
+	// Create our events channel with sufficient buffer size.
+	events := make(chan window.Event, 256)
 
-	temp, _ := sensorS8(bot, 24)
-	log.Printf("Temp: %dC", temp)
-
-	charge, _ := sensorU16(bot, 25)
-	log.Printf("Charge: %dmAh", charge)
-
-	cap, _ := sensorU16(bot, 26)
-	log.Printf("Capacity: %dmAh", cap)
-
-	mode, _ = sensorU8(bot, 35)
-	log.Printf("Mode: %d", mode)
-	//log.Printf("Mode: %s", modes[mode])
-
-	log.Println()
+	// collect sensor data in a separate goroutine
+	go func() {
+		time.Sleep(500)
+		events <- &TimeEvent{}
+	}()
 
 	// Handle window events in a seperate goroutine
 	go func() {
-		// Create our events channel with sufficient buffer size.
-		events := make(chan window.Event, 256)
-
 		// Notify our channel anytime any event occurs.
 		w.Notify(events, window.AllEvents)
 
@@ -214,6 +247,9 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 						err = bot.WriteByte(143) // Seek Dock
 					}
 				}
+			case *TimeEvent:
+				// grab all the sensor info
+				sensor, _ = getSensorInfo(bot)
 			}
 		}
 	}()
