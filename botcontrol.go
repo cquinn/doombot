@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	//"fmt"
+	"encoding/binary"
 	"image"
 	"log"
 	"net"
@@ -24,6 +25,7 @@ const (
 var (
 	serialPort = flag.String("serial", defaultSerial, "Local serial port name.")
 	remoteAddr = flag.String("remote", "", "Remote Roomba's network address and port.")
+	modes      = []string{"Off", "Passive", "Safe", "Full"}
 )
 
 func makeRemoteRoomba(remoteAddr string) (*roomba.Roomba, error) {
@@ -35,6 +37,46 @@ func makeRemoteRoomba(remoteAddr string) (*roomba.Roomba, error) {
 	}
 	roomba.S = conn
 	return roomba, nil
+}
+
+func sensorS8(bot *roomba.Roomba, sensor byte) (int, error) {
+	bytes, err := bot.Sensors(sensor)
+	if err != nil {
+		return 0, err
+	}
+	//log.Printf(" s8 bytes %v", bytes)
+	val := bytes[0]
+	return int(val), nil
+}
+
+func sensorS16(bot *roomba.Roomba, sensor byte) (int, error) {
+	bytes, err := bot.Sensors(sensor)
+	if err != nil {
+		return 0, err
+	}
+	//log.Printf(" s16 bytes %v", bytes)
+	val := binary.BigEndian.Uint16(bytes)
+	return int(val), nil
+}
+
+func sensorU8(bot *roomba.Roomba, sensor byte) (uint, error) {
+	bytes, err := bot.Sensors(sensor)
+	if err != nil {
+		return 0, err
+	}
+	//log.Printf(" u8 bytes %v", bytes)
+	val := bytes[0]
+	return uint(val), nil
+}
+
+func sensorU16(bot *roomba.Roomba, sensor byte) (uint, error) {
+	bytes, err := bot.Sensors(sensor)
+	if err != nil {
+		return 0, err
+	}
+	//log.Printf(" u16 bytes %v", bytes)
+	val := binary.BigEndian.Uint16(bytes)
+	return uint(val), nil
 }
 
 // gfxLoop is responsible for drawing things to the window.
@@ -68,11 +110,51 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	if err != nil {
 		log.Fatal("Starting failed")
 	}
+
+	mode, _ := sensorU8(bot, 35)
+	log.Printf("Mode: %d", mode)
+	//log.Printf("Mode: %s", modes[mode])
+
+	charging, _ := sensorU8(bot, 21)
+	log.Printf("Charging state: %d", charging)
+	log.Println()
+
 	log.Printf("Entering Safe mode")
 	err = bot.Safe()
 	if err != nil {
 		log.Fatal("Entering Safe mode failed")
 	}
+	log.Println()
+
+	charging, _ = sensorU8(bot, 21)
+	log.Printf("Charging state: %d", charging)
+	/*
+		0 Not charging
+		1 Reconditioning Charging 2 Full Charging
+		3 Trickle Charging
+		4 Waiting
+		5 Charging Fault Condition
+	*/
+
+	voltage, _ := sensorU16(bot, 22)
+	log.Printf("Voltage: %dmV", voltage)
+
+	current, _ := sensorS16(bot, 23)
+	log.Printf("Current: %dmA", current)
+
+	temp, _ := sensorS8(bot, 24)
+	log.Printf("Temp: %dC", temp)
+
+	charge, _ := sensorU16(bot, 25)
+	log.Printf("Charge: %dmAh", charge)
+
+	cap, _ := sensorU16(bot, 26)
+	log.Printf("Capacity: %dmAh", cap)
+
+	mode, _ = sensorU8(bot, 35)
+	log.Printf("Mode: %d", mode)
+	//log.Printf("Mode: %s", modes[mode])
+
 	log.Println()
 
 	// Handle window events in a seperate goroutine
@@ -122,10 +204,14 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 				} else {
 					if w.Keyboard().Down(keyboard.R) {
 						log.Printf("Resetting to safe mode")
+						err = bot.Start()
 						err = bot.Safe()
 						if err != nil {
 							log.Fatal("Entering Safe mode failed")
 						}
+					} else if w.Keyboard().Down(keyboard.D) {
+						log.Printf("Seeking Dock")
+						err = bot.WriteByte(143) // Seek Dock
 					}
 				}
 			}
@@ -162,9 +248,12 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		}
 
 		if w.Keyboard().Down(keyboard.Q) {
+			log.Println()
 			log.Printf("Quitting")
-			bot.Stop() // Motor Stop
-			//bot.WriteByte(173) // Roomba Stop
+			bot.Stop()         // Motor Stop
+			bot.WriteByte(173) // Create 2 Stop
+			//bot.Power()
+
 			w.Close()
 		}
 
