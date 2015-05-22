@@ -8,11 +8,12 @@ import (
 	"log"
 	"net"
 	"reflect"
+	"time"
 
 	"azul3d.org/gfx.v1"
 	"azul3d.org/gfx/window.v2"
 	"azul3d.org/keyboard.v1"
-	"azul3d.org/mouse.v1"
+	"github.com/cquinn/doombot/testing"
 	"github.com/xa4a/go-roomba"
 )
 
@@ -25,6 +26,7 @@ const (
 var (
 	serialPort = flag.String("serial", defaultSerial, "Local serial port name.")
 	remoteAddr = flag.String("remote", "", "Remote Roomba's network address and port.")
+	testMode   = flag.String("testMode", "", "Set to true to use a mock roomba")
 	modes      = []string{"Off", "Passive", "Safe", "Full"}
 
 	t8  byte = 12 // 16 for 120BPM in theory
@@ -126,6 +128,54 @@ var (
 	}
 )
 
+type TimeEvent struct{}
+
+func (e *TimeEvent) Time() time.Time {
+	return time.Now()
+}
+
+type SensorInfo struct {
+	voltage  uint
+	current  int
+	temp     int
+	charge   uint
+	capacity uint
+	// TODO - add enum for mode (careful, can get whacky modes...)
+	mode  uint
+	bumps uint
+}
+
+func getSensorInfo(bot *roomba.Roomba) (*SensorInfo, error) {
+	si := &SensorInfo{}
+	log.Println()
+	log.Printf("GETTING SENSOR INFO")
+	// TODO - check for error return from sensor stuff
+	si.voltage, _ = sensorU16(bot, 22)
+	log.Printf("Voltage: %dmV", si.voltage)
+
+	si.current, _ = sensorS16(bot, 23)
+	log.Printf("Current: %dmA", si.current)
+
+	si.temp, _ = sensorS8(bot, 24)
+	log.Printf("Temp: %dC", si.temp)
+
+	si.charge, _ = sensorU16(bot, 25)
+	log.Printf("Charge: %dmAh", si.charge)
+
+	si.capacity, _ = sensorU16(bot, 26)
+	log.Printf("Capacity: %dmAh", si.capacity)
+
+	si.mode, _ = sensorU8(bot, 35)
+	log.Printf("Mode: %d", si.mode)
+
+	si.bumps, _ = sensorU8(bot, 7)
+	log.Printf("Bumps: %d", si.bumps)
+
+	log.Println()
+
+	return si, nil
+}
+
 func makeRemoteRoomba(remoteAddr string) (*roomba.Roomba, error) {
 	// from MakeRoomba()...
 	roomba := &roomba.Roomba{PortName: remoteAddr, StreamPaused: make(chan bool, 1)}
@@ -197,7 +247,10 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 	// Who we gonna call? Default to local serial unless a remote addr was given
 	var bot *roomba.Roomba
-	if *remoteAddr != "" {
+	if *testMode == "true" {
+		log.Printf("Creating mock doombot")
+		bot = testing.MakeTestRoomba()
+	} else if *remoteAddr != "" {
 		log.Printf("Connecting to remote Doombot @ %s", *remoteAddr)
 		var err error
 		bot, err = makeRemoteRoomba(*remoteAddr)
@@ -225,6 +278,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	log.Printf("Mode: %d", mode)
 	//log.Printf("Mode: %s", modes[mode])
 
+	// TODO - add sensor 21 to mock roomba
 	charging, _ := sensorU8(bot, 21)
 	log.Printf("Charging state: %d", charging)
 	log.Println()
@@ -246,26 +300,19 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		5 Charging Fault Condition
 	*/
 
-	voltage, _ := sensorU16(bot, 22)
-	log.Printf("Voltage: %dmV", voltage)
+	// to be populated by a timer and dumped to the UI
+	sensor, _ := getSensorInfo(bot)
 
-	current, _ := sensorS16(bot, 23)
-	log.Printf("Current: %dmA", current)
+	// Create our events channel with sufficient buffer size.
+	events := make(chan window.Event, 256)
 
-	temp, _ := sensorS8(bot, 24)
-	log.Printf("Temp: %dC", temp)
-
-	charge, _ := sensorU16(bot, 25)
-	log.Printf("Charge: %dmAh", charge)
-
-	cap, _ := sensorU16(bot, 26)
-	log.Printf("Capacity: %dmAh", cap)
-
-	mode, _ = sensorU8(bot, 35)
-	log.Printf("Mode: %d", mode)
-	//log.Printf("Mode: %s", modes[mode])
-
-	log.Println()
+	// collect sensor data in a separate goroutine
+	go func() {
+		for {
+			time.Sleep(500 * time.Millisecond)
+			events <- &TimeEvent{}
+		}
+	}()
 
 	defineSong(bot, 1, cscaleup)
 	//defineSong(bot, 2, cscaledown)
@@ -275,9 +322,6 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 	// Handle window events in a seperate goroutine
 	go func() {
-		// Create our events channel with sufficient buffer size.
-		events := make(chan window.Event, 256)
-
 		// Notify our channel anytime any event occurs.
 		w.Notify(events, window.AllEvents)
 
@@ -345,20 +389,64 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 						playSong(bot, 5)
 					}
 				}
+			case *TimeEvent:
+				// grab all the sensor info
+				log.Printf("Getting latest sensor info")
+				sensor, _ = getSensorInfo(bot)
 			}
 		}
 	}()
 
 	// cheesy block direction signals
-	upArr := image.Rect(100, 0, 100+100, 0+100)
-	dnArr := image.Rect(100, 200, 100+100, 200+100)
-	lfArr := image.Rect(0, 100, 0+100, 100+100)
-	rtArr := image.Rect(200, 100, 200+100, 100+100)
+	upArr := image.Rect(150, 100, 150+50, 100+50)
+	dnArr := image.Rect(150, 200, 150+50, 200+50)
+	lfArr := image.Rect(100, 150, 100+50, 150+50)
+	rtArr := image.Rect(200, 150, 200+50, 150+50)
+
+	//bumpers
+	tlBumper := image.Rect(30, 50, 30+80, 50+30)
+	trBumper := image.Rect(240, 50, 240+80, 50+30)
 
 	for {
 		//log.Printf("Rendering")
 		// Clear the entire area (empty rectangle means "the whole area").
 		r.Clear(image.Rect(0, 0, 0, 0), gfx.Color{1, 1, 1, 1})
+
+		//clear d-pad
+		r.Clear(upArr, gfx.Color{0.5, 0, 0, 0.1})
+		r.Clear(dnArr, gfx.Color{0.5, 0, 0, 0.1})
+		r.Clear(lfArr, gfx.Color{0.5, 0, 0, 0.1})
+		r.Clear(rtArr, gfx.Color{0.5, 0, 0, 0.1})
+
+		r.Clear(tlBumper, gfx.Color{0, 0.7, 0, 1})
+		r.Clear(trBumper, gfx.Color{0, 0.7, 0, 1})
+
+		// flash red if we bump
+		switch sensor.bumps {
+		case 0:
+			r.Clear(tlBumper, gfx.Color{1, 0, 0, 1})
+		case 1:
+			r.Clear(tlBumper, gfx.Color{1, 0, 0, 1})
+		}
+
+		// RGBA
+		// red - 215,40,40,1
+		// green - 40,215,40,1
+		// black/clear - 0,0,0,0
+
+		//draw battery
+		percentCharge := float64(sensor.charge) / float64(sensor.capacity)
+		botHeight := int(90 * percentCharge)
+		topHeight := 90 - botHeight
+
+		// use charge percentage to calc size of green/red battery areas
+		tipBat := image.Rect(610, 330, 610+30, 330+10)
+		topBat := image.Rect(600, 340, 600+50, 340+topHeight) // 370
+		botBat := image.Rect(600, 430-botHeight, 600+50, 430) // 430
+
+		r.Clear(botBat, gfx.Color{0, 0.7, 0, 1})
+		r.Clear(topBat, gfx.Color{0.7, 0, 0, 1})
+		r.Clear(tipBat, gfx.Color{0, 0, 0, 0})
 
 		// The keyboard is monitored for you, simply check if a key is down:
 		if w.Keyboard().Down(keyboard.ArrowUp) {
@@ -386,12 +474,6 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 			//bot.Power()
 
 			w.Close()
-		}
-
-		// And the same thing with the mouse, check if a mouse button is down:
-		if w.Mouse().Down(mouse.Left) {
-			// Clear a blue rectangle.
-			r.Clear(image.Rect(100, 100, 200, 200), gfx.Color{0, 0, 1, 1})
 		}
 
 		// Render the whole frame.
