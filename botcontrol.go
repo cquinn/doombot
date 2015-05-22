@@ -1,13 +1,14 @@
 package main
 
 import (
-	"flag"
-	//"fmt"
 	"encoding/binary"
+	"flag"
+	"fmt"
 	"image"
 	"log"
 	"net"
 	"reflect"
+	"strings"
 	"time"
 
 	"azul3d.org/gfx.v1"
@@ -191,6 +192,13 @@ func makeRemoteRoomba(remoteAddr string) (*roomba.Roomba, error) {
 	return roomba, nil
 }
 
+func makeRemotePi(remoteAddr string) (net.Conn, error) {
+	parts := strings.Split(remoteAddr, ":")
+	host := parts[0]
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:9004", host))
+	return conn, err
+}
+
 func defineSong(bot *roomba.Roomba, songNum int, songNotes []byte) {
 	songLen := len(songNotes) / 2
 	songBytes := []byte{byte(songNum - 1), byte(songLen)}
@@ -251,9 +259,13 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 	// Who we gonna call? Default to local serial unless a remote addr was given
 	var bot *roomba.Roomba
+	var pi net.Conn
+	var tilt int = 50
+
 	if *testMode == "true" {
 		log.Printf("Creating mock doombot")
 		bot = testing.MakeTestRoomba()
+
 	} else if *remoteAddr != "" {
 		log.Printf("Connecting to remote Doombot @ %s", *remoteAddr)
 		var err error
@@ -261,6 +273,8 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		if err != nil {
 			log.Fatalf("Connecting to remote Doombot @ %s failed", *remoteAddr)
 		}
+		pi, _ = makeRemotePi(*remoteAddr)
+
 	} else {
 		log.Printf("Connecting to local serial Doombot @ %s", *serialPort)
 		var err error
@@ -373,9 +387,31 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 						if err != nil {
 							log.Fatal("Entering Safe mode failed")
 						}
+
 					} else if w.Keyboard().Down(keyboard.D) {
 						log.Printf("Seeking Dock")
 						err = bot.WriteByte(143) // Seek Dock
+
+					} else if w.Keyboard().Down(keyboard.W) {
+						log.Printf("Tilting up")
+						tilt += 10
+						if tilt > 100 {
+							tilt = 100
+						}
+						if pi != nil {
+							pi.Write([]byte(fmt.Sprintf("tilt %d\n")))
+						}
+
+					} else if w.Keyboard().Down(keyboard.S) {
+						log.Printf("Tilting down")
+						tilt -= 10
+						if tilt < 0 {
+							tilt = 0
+						}
+						if pi != nil {
+							pi.Write([]byte(fmt.Sprintf("tilt %d\n")))
+						}
+
 					} else if w.Keyboard().Down(keyboard.One) {
 						log.Printf("Playing Song 1")
 						playSong(bot, 1)
