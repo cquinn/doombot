@@ -438,14 +438,18 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	}()
 
 	// cheesy block direction signals
-	upArr := image.Rect(150, 100, 150+50, 100+50)
-	dnArr := image.Rect(150, 200, 150+50, 200+50)
-	lfArr := image.Rect(100, 150, 100+50, 150+50)
-	rtArr := image.Rect(200, 150, 200+50, 150+50)
+	upArr := image.Rect(600, 100, 600+50, 100+50)
+	dnArr := image.Rect(600, 200, 600+50, 200+50)
+	lfArr := image.Rect(550, 150, 550+50, 150+50)
+	rtArr := image.Rect(650, 150, 650+50, 150+50)
 
 	//bumpers
-	tlBumper := image.Rect(30, 50, 30+80, 50+30)
-	trBumper := image.Rect(240, 50, 240+80, 50+30)
+	tlBumper := image.Rect(480, 50, 480+80, 50+30)
+	trBumper := image.Rect(690, 50, 690+80, 50+30)
+
+	// tilt indicators
+	tiltUp := image.Rect(150, 100, 150+50, 100+50)   // 370
+	tiltDown := image.Rect(150, 200, 150+50, 200+50) // 430
 
 	for {
 		//log.Printf("Rendering")
@@ -460,6 +464,9 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 		r.Clear(tlBumper, gfx.Color{0, 0.7, 0, 1})
 		r.Clear(trBumper, gfx.Color{0, 0.7, 0, 1})
+
+		r.Clear(tiltUp, gfx.Color{0, 0, 0.3, 1})
+		r.Clear(tiltDown, gfx.Color{0, 0, 0.3, 1})
 
 		// flash red if we bump
 		if sensor.bumpleft {
@@ -480,9 +487,9 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		topHeight := 90 - botHeight
 
 		// use charge percentage to calc size of green/red battery areas
-		tipBat := image.Rect(610, 330, 610+30, 330+10)
-		topBat := image.Rect(600, 340, 600+50, 340+topHeight) // 370
-		botBat := image.Rect(600, 430-botHeight, 600+50, 430) // 430
+		tipBat := image.Rect(160, 330, 160+30, 330+10)
+		topBat := image.Rect(150, 340, 150+50, 340+topHeight) // 370
+		botBat := image.Rect(150, 430-botHeight, 150+50, 430) // 430
 
 		r.Clear(botBat, gfx.Color{0, 0.7, 0, 1})
 		r.Clear(topBat, gfx.Color{0.7, 0, 0, 1})
@@ -504,6 +511,14 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		if w.Keyboard().Down(keyboard.ArrowRight) {
 			// Clear a red rectangle.
 			r.Clear(rtArr, gfx.Color{1, 0, 0, 1})
+		}
+		if w.Keyboard().Down(keyboard.W) {
+			// tilt up
+			r.Clear(tiltUp, gfx.Color{0, 0, 1, 1})
+		}
+		if w.Keyboard().Down(keyboard.S) {
+			// tilt down
+			r.Clear(tiltDown, gfx.Color{0, 0, 1, 1})
 		}
 
 		if w.Keyboard().Down(keyboard.Q) {
