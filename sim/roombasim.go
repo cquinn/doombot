@@ -32,11 +32,11 @@ type RoombaSimulator struct {
 // MockSensorValues contains mapping of sensor codes to sensor values returned
 // by a RoombaSimulator object on sensor requests.
 var MockSensorValues = map[byte][]byte{
-	constants.SENSOR_BUMP_WHEELS_DROPS: []byte{3},
+	constants.SENSOR_BUMP_WHEELS_DROPS: []byte{0},
 	constants.SENSOR_VIRTUAL_WALL:      []byte{5},
 	constants.SENSOR_CLIFF_RIGHT:       []byte{42},
 	constants.SENSOR_CHARGING:          []byte{21},
-	constants.SENSOR_VOLTAGE:           []byte{22},
+	constants.SENSOR_VOLTAGE:           roomba.Pack([]interface{}{uint16(1200)}),
 	// constants.SENSOR_CURRENT:           []byte{23},
 	constants.SENSOR_TEMPERATURE: []byte{24},
 	// constants.SENSOR_BATTERY_CHARGE:          []byte{25},
@@ -44,7 +44,7 @@ var MockSensorValues = map[byte][]byte{
 	constants.SENSOR_SONG_NUMBER:             []byte{1},
 	constants.SENSOR_DISTANCE:                []byte{10, 20},
 	constants.SENSOR_WALL:                    []byte{35},
-	constants.SENSOR_BATTERY_CHARGE:          roomba.Pack([]interface{}{uint16(1000)}),
+	constants.SENSOR_BATTERY_CHARGE:          roomba.Pack([]interface{}{uint16(1300)}),
 	constants.SENSOR_BATTERY_CAPACITY:        roomba.Pack([]interface{}{uint16(1500)}),
 	constants.SENSOR_CURRENT:                 roomba.Pack([]interface{}{int16(-747)}),
 	constants.SENSOR_CLIFF_FRONT_LEFT_SIGNAL: roomba.Pack([]interface{}{uint8(2), uint8(25)}),

@@ -13,9 +13,7 @@ import (
 	"azul3d.org/gfx.v1"
 	"azul3d.org/gfx/window.v2"
 	"azul3d.org/keyboard.v1"
-	"azul3d.org/mouse.v1"
 	"github.com/cquinn/doombot/testing"
-	"github.com/cquinn/doombot/text"
 	"github.com/xa4a/go-roomba"
 )
 
@@ -45,7 +43,8 @@ type SensorInfo struct {
 	charge   uint
 	capacity uint
 	// TODO - add enum for mode (careful, can get whacky modes...)
-	mode uint
+	mode  uint
+	bumps uint
 }
 
 func getSensorInfo(bot *roomba.Roomba) (*SensorInfo, error) {
@@ -70,6 +69,9 @@ func getSensorInfo(bot *roomba.Roomba) (*SensorInfo, error) {
 
 	si.mode, _ = sensorU8(bot, 35)
 	log.Printf("Mode: %d", si.mode)
+
+	si.bumps, _ = sensorU8(bot, 7)
+	log.Printf("Bumps: %d", si.bumps)
 
 	log.Println()
 
@@ -189,7 +191,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	*/
 
 	// to be populated by a timer and dumped to the UI
-	var sensor *SensorInfo
+	sensor, _ := getSensorInfo(bot)
 
 	// Create our events channel with sufficient buffer size.
 	events := make(chan window.Event, 256)
@@ -274,11 +276,6 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 	tlBumper := image.Rect(30, 50, 30+80, 50+30)
 	trBumper := image.Rect(240, 50, 240+80, 50+30)
 
-	//batteryComponents
-	botBat := image.Rect(600, 400, 600+50, 400+30)
-	midBat := image.Rect(600, 370, 600+50, 370+30)
-	topBat := image.Rect(600, 340, 600+50, 340+30)
-	tipBat := image.Rect(610, 330, 610+30, 330+10)
 	for {
 		//log.Printf("Rendering")
 		// Clear the entire area (empty rectangle means "the whole area").
@@ -290,14 +287,35 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		r.Clear(lfArr, gfx.Color{0.5, 0, 0, 0.1})
 		r.Clear(rtArr, gfx.Color{0.5, 0, 0, 0.1})
 
-		r.Clear(tlBumper, gfx.Color{0.5, 0, 0, 0.1})
-		r.Clear(trBumper, gfx.Color{0.5, 0, 0, 0.1})
+		r.Clear(tlBumper, gfx.Color{0, 0.7, 0, 1})
+		r.Clear(trBumper, gfx.Color{0, 0.7, 0, 1})
+
+		// flash red if we bump
+		switch sensor.bumps {
+		case 0:
+			r.Clear(tlBumper, gfx.Color{1, 0, 0, 1})
+		case 1:
+			r.Clear(tlBumper, gfx.Color{1, 0, 0, 1})
+		}
+
+		// RGBA
+		// red - 215,40,40,1
+		// green - 40,215,40,1
+		// black/clear - 0,0,0,0
 
 		//draw battery
-		r.Clear(botBat, gfx.Color{0.5, 0, 0, 0.1})
-		r.Clear(midBat, gfx.Color{0.5, 0, 0, 0.1})
-		r.Clear(topBat, gfx.Color{0.5, 0, 0, 0.1})
-		r.Clear(tipBat, gfx.Color{0.5, 0, 0, 0.1})
+		percentCharge := float64(sensor.charge) / float64(sensor.capacity)
+		botHeight := int(90 * percentCharge)
+		topHeight := 90 - botHeight
+
+		// use charge percentage to calc size of green/red battery areas
+		tipBat := image.Rect(610, 330, 610+30, 330+10)
+		topBat := image.Rect(600, 340, 600+50, 340+topHeight) // 370
+		botBat := image.Rect(600, 430-botHeight, 600+50, 430) // 430
+
+		r.Clear(botBat, gfx.Color{0, 0.7, 0, 1})
+		r.Clear(topBat, gfx.Color{0.7, 0, 0, 1})
+		r.Clear(tipBat, gfx.Color{0, 0, 0, 0})
 
 		// The keyboard is monitored for you, simply check if a key is down:
 		if w.Keyboard().Down(keyboard.ArrowUp) {
@@ -326,21 +344,6 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 			w.Close()
 		}
-
-		// And the same thing with the mouse, check if a mouse button is down:
-		if w.Mouse().Down(mouse.Left) {
-			// Clear a blue rectangle.
-			r.Clear(image.Rect(100, 100, 200, 200), gfx.Color{0, 0, 1, 1})
-		}
-
-		// Add some text
-		text.Runes = append(text.Runes, ev.Rune)
-		text.Update()
-		b := r.Bounds()
-		text.Object.SetPos(lmath.Vec3{0, 0, float64(b.Dy()) / 2.0})
-		r.Clear(image.Rect(0, 0, 0, 0), gfx.Color{0.2, 0.2, 0.2, 1})
-		r.ClearDepth(image.Rect(0, 0, 0, 0), 1.0)
-		r.Draw(image.Rect(0, 0, 0, 0), text.Object, camera)
 
 		// Render the whole frame.
 		r.Render()
