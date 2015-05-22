@@ -20,8 +20,8 @@ import (
 
 const (
 	defaultSerial  = "/dev/cu.usbserial-DA017N8D"
-	velocityChange = 300
-	rotationChange = 400
+	velocityChange = 100
+	rotationChange = 300
 )
 
 var (
@@ -483,6 +483,9 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 
 		//draw battery
 		percentCharge := float64(sensor.charge) / float64(sensor.capacity)
+		if percentCharge > 1 {
+			percentCharge = 1
+		}
 		botHeight := int(90 * percentCharge)
 		topHeight := 90 - botHeight
 
