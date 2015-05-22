@@ -141,8 +141,9 @@ type SensorInfo struct {
 	charge   uint
 	capacity uint
 	// TODO - add enum for mode (careful, can get whacky modes...)
-	mode  uint
-	bumps uint
+	mode      uint
+	bumpleft  bool
+	bumpright bool
 }
 
 func getSensorInfo(bot *roomba.Roomba) (*SensorInfo, error) {
@@ -168,8 +169,11 @@ func getSensorInfo(bot *roomba.Roomba) (*SensorInfo, error) {
 	si.mode, _ = sensorU8(bot, 35)
 	log.Printf("Mode: %d", si.mode)
 
-	si.bumps, _ = sensorU8(bot, 7)
-	log.Printf("Bumps: %d", si.bumps)
+	bumps, _ := sensorU8(bot, 7)
+	log.Printf("Bumps: %d", bumps)
+
+	si.bumpright = (bumps&1 != 0)
+	si.bumpleft = (bumps&2 != 0)
 
 	log.Println()
 
@@ -422,11 +426,11 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 		r.Clear(trBumper, gfx.Color{0, 0.7, 0, 1})
 
 		// flash red if we bump
-		switch sensor.bumps {
-		case 0:
+		if sensor.bumpleft {
 			r.Clear(tlBumper, gfx.Color{1, 0, 0, 1})
-		case 1:
-			r.Clear(tlBumper, gfx.Color{1, 0, 0, 1})
+		}
+		if sensor.bumpright {
+			r.Clear(trBumper, gfx.Color{1, 0, 0, 1})
 		}
 
 		// RGBA
