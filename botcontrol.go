@@ -399,7 +399,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 							tilt = 100
 						}
 						if pi != nil {
-							pi.Write([]byte(fmt.Sprintf("tilt %d\n")))
+							pi.Write([]byte(fmt.Sprintf("tilt %d\n", tilt)))
 						}
 
 					} else if w.Keyboard().Down(keyboard.S) {
@@ -409,7 +409,7 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 							tilt = 0
 						}
 						if pi != nil {
-							pi.Write([]byte(fmt.Sprintf("tilt %d\n")))
+							pi.Write([]byte(fmt.Sprintf("tilt %d\n", tilt)))
 						}
 
 					} else if w.Keyboard().Down(keyboard.One) {
