@@ -20,7 +20,8 @@ import (
 
 const (
 	defaultSerial  = "/dev/cu.usbserial-DA017N8D"
-	velocityChange = 100
+	velocityChange = 200
+	velocityMax    = 300
 	rotationChange = 300
 )
 
@@ -354,12 +355,17 @@ func gfxLoop(w window.Window, r gfx.Renderer) {
 				ke := event.(keyboard.StateEvent)
 
 				motionChange := ke.Key == keyboard.ArrowUp || ke.Key == keyboard.ArrowDown ||
-					ke.Key == keyboard.ArrowLeft || ke.Key == keyboard.ArrowRight
+					ke.Key == keyboard.ArrowLeft || ke.Key == keyboard.ArrowRight ||
+					ke.Key == keyboard.LeftShift
 
 				if motionChange {
 					velocity := 0
 					if w.Keyboard().Down(keyboard.ArrowUp) {
-						velocity = velocityChange
+						if w.Keyboard().Down(keyboard.LeftShift) {
+							velocity = velocityMax
+						} else {
+							velocity = velocityChange
+						}
 					}
 					if w.Keyboard().Down(keyboard.ArrowDown) {
 						velocity = -velocityChange
